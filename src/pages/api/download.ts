@@ -1,6 +1,8 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next';
 import puppeteer, { Page } from 'puppeteer';
+import { join } from 'path';
+import { writeFile, mkdir } from 'fs/promises';
 
 type Data = any;
 
@@ -21,6 +23,35 @@ export default async function handler(
   await page.goto(link, {
     waitUntil: 'networkidle0',
   });
+
+  // get album cover url and download image
+  const coverUrl = await page.$$eval(
+    'span[aria-role=img]',
+    async (elements) => {
+      // get url from cover image element background style. ex: url("https://i1.sndcdn.com/artworks-000636328306-jx14j6-t500x500.jpg")
+      function parseCoverUrl(url: string) {
+        return url.replace('url(', '').replace(')', '').replaceAll('"', '');
+      }
+
+      const element = elements[0]; // it seems to always be the first element
+      return parseCoverUrl(element.style.backgroundImage);
+    },
+  );
+
+  const album = (() => {
+    const paths = link.split('/');
+    return paths[paths.length - 1];
+  })();
+  const basePath = process.env.HOME || process.env.USERPROFILE || '.'; // HOME (mac), USERPROFILE (windows)
+  const downloadPath = join(basePath, 'Downloads', `album-${album}`);
+  const coverData = await (await fetch(coverUrl)).arrayBuffer();
+  try {
+    // save album cover image to fs
+    await mkdir(downloadPath);
+    await writeFile(join(downloadPath, 'cover.jpg'), Buffer.from(coverData));
+  } catch (error) {
+    console.error('failed to save album cover image');
+  }
 
   // scroll page to bottom (songs load as scroll)
   await autoScroll(page);
