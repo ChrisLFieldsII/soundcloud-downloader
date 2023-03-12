@@ -6,6 +6,8 @@ import { writeFile, mkdir } from 'fs/promises';
 
 type Data = any;
 
+const DEFAULT_TIMEOUT = 1000 * 10;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>,
@@ -72,6 +74,7 @@ export default async function handler(
   // go to soundcloud to mp3 converter site
   await page.goto('https://www.soundcloudme.com/', {
     waitUntil: 'networkidle0',
+    timeout: DEFAULT_TIMEOUT,
   });
 
   // enter song urls into converter
@@ -92,7 +95,7 @@ export default async function handler(
     }
     await submitBtn.click();
 
-    await page.waitForNavigation();
+    await page.waitForNavigation({ timeout: DEFAULT_TIMEOUT });
 
     // at the download page
     const downloadBtn = await page.$('button[type=submit]');
@@ -108,7 +111,7 @@ export default async function handler(
       throw new Error('no download another btn found');
     }
     await downloadAnotherBtn.click();
-    await page.waitForNavigation();
+    await page.waitForNavigation({ timeout: DEFAULT_TIMEOUT });
   }
 
   await browser.close();
