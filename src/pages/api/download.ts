@@ -1,8 +1,14 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next';
-import puppeteer, { Page } from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
 import { join } from 'path';
 import { writeFile, mkdir } from 'fs/promises';
+import type { Page } from 'puppeteer';
+
+const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
+const UserPreferencesPlugin = require('puppeteer-extra-plugin-user-preferences');
+
+puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 type Data = any;
 
@@ -16,6 +22,24 @@ export default async function handler(
   if (!link) {
     throw new Error('provide `link` query param');
   }
+
+  const album = (() => {
+    const paths = link.split('/');
+    return paths[paths.length - 1];
+  })();
+  const basePath = process.env.HOME || process.env.USERPROFILE || '.'; // HOME (mac), USERPROFILE (windows)
+  const downloadPath = join(basePath, 'Downloads', album);
+
+  // configure download path
+  puppeteer.use(
+    UserPreferencesPlugin({
+      userPrefs: {
+        download: {
+          default_directory: downloadPath,
+        },
+      },
+    }),
+  );
 
   // go to soundcloud
   const browser = await puppeteer.launch({
@@ -40,12 +64,6 @@ export default async function handler(
     },
   );
 
-  const album = (() => {
-    const paths = link.split('/');
-    return paths[paths.length - 1];
-  })();
-  const basePath = process.env.HOME || process.env.USERPROFILE || '.'; // HOME (mac), USERPROFILE (windows)
-  const downloadPath = join(basePath, 'Downloads', `album-${album}`);
   const coverData = await (await fetch(coverUrl)).arrayBuffer();
   try {
     // save album cover image to fs
@@ -83,7 +101,7 @@ export default async function handler(
 
     console.log(`${x + 1}: processing url ${url}`);
 
-    const input = await page.$('input[type=text]');
+    const input = await page.$('input[class=form-control]');
     if (!input) {
       throw new Error('no input found');
     }
@@ -136,5 +154,14 @@ async function autoScroll(page: Page) {
         }
       }, 1000 * 1);
     });
+  });
+}
+
+/** sleep for some time in ms */
+async function sleep(time: number) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(undefined);
+    }, time);
   });
 }
