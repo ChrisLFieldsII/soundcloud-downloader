@@ -18,6 +18,8 @@ const DEFAULT_TIMEOUT = 1000 * 10;
 /**
  * This download api route takes a list of soundcloud playlist/album url and downloads each song.
  * The only required query param is `links`. a comma delineated string of links.
+ *
+ * Example url: http://localhost:3000/api/download?links=https://soundcloud.com/marcus_sweglord/sets/domo-genesis-rolling-papers
  */
 export default async function handler(
   req: NextApiRequest,
